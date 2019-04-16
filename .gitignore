@@ -1,0 +1,8 @@
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+rsconnect/
+data/xDummy_Data.csv
+data/*.xlsx
+facilities_export.txt

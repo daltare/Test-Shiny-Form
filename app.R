@@ -2,7 +2,7 @@ library(shiny)
 library(dplyr)
 
 
-fieldsMandatory <- c("agency")
+fieldsMandatory <- c('agency_code', "agency")
 
 labelMandatory <- function(label) {
     tagList(
@@ -22,10 +22,17 @@ appCSS <-
 
 humanTime <- function() format(Sys.time(), "%Y%m%d-%H%M%OS")
 
-# Get Data
+# Get Facility Info (to be used in populating fields)
     dummy.data <- readr::read_csv('data//Dummy_Data.csv')
     agencies.list <- c('', sort(dummy.data$agency_name))
     # facility_agency <- dummy.data %>% distinct(facility_name, agency_name) %>% arrange(agency_name)
+    
+# Get Previous Responses
+    previous.responses <- readr::read_csv("responses\\_Master.csv")
+    
+# get codes
+    codes <- readr::read_csv("data\\Codes.csv")
+    code <- codes %>% arrange(desc(agency_name) )
 
 
 shinyApp(
@@ -39,11 +46,39 @@ shinyApp(
         div(
             id = "form",
             h3('Agency Information:'),
-            p(labelMandatory(tags$b('Select Agency: ')), '(Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)'),
-            selectInput(inputId = 'agency', 
-                        label = NULL, # labelMandatory("Select Agency: (Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)"), 
-                        choices = agencies.list, 
-                        selected = ""), # width = 810),
+            p(labelMandatory(tags$b('Enter agency code (recieved via email):'))),
+            div(
+                textInput(inputId = 'agency_code', 
+                          label = NULL, #labelMandatory('Enter agency code (recieved via email):'), 
+                          value = '', 
+                          placeholder = NA),
+                style="display: inline-block;vertical-align:top;"
+            ),
+            div(style="display: inline-block;vertical-align:top; width: 25px;",HTML("<br>")), # add some space
+            div(
+                actionButton("show_codes", "Show Agency Codes", class = "btn-primary"), 
+                style="display: inline-block;vertical-align:top;"
+            ),
+            div(),
+            p(labelMandatory(tags$b('Agency: ')), '(Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)'),
+            # selectInput(inputId = 'agency',
+            #             label = NULL, # labelMandatory("Select Agency: (Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)"),
+            #             choices = agencies.list,
+            #             selected = ""), # width = 810),
+            uiOutput('agencySelect'),
+            shinyjs::hidden(
+                div(id = 'form_duplicates',
+                    textInput(inputId = 'duplicate_reason', 
+                              label = p(span('Please describe the reason for entering a new response for this agency (e.g., correcting a particular question, previous response submitted accidentally, etc.):', style = "color:red")), 
+                              placeholder = 'Enter reason here...', 
+                              value = NA, 
+                              width = 1000),
+                    radioButtons(inputId = 'overwrite_duplicate', 
+                                 label = p(span('Would you like to overwrite your agency\'s previous response?', style = "color:red")), 
+                                 choices = c('No', 'Yes'),
+                                 selected = 'No',
+                                 inline = TRUE)
+                )),
             # textInput(inputId = "agency", label = labelMandatory("Agency:"), value = ""),
             # checkboxGroupInput(inputId = "facility_types", label = "Check facilities your agency is responsible for:", 
             #                    choices = c("Collection", "Interception", "Treatment", "Disposal"), selected = c('Interception')),
@@ -426,15 +461,47 @@ shinyApp(
                 h3("Thanks, your response was submitted successfully!"),
                 actionLink("submit_another", "Submit another response")
             )
-        ) 
+        ), 
+        
+        shinyjs::hidden(
+            div(
+                id = "duplicate_msg",
+                h3("Your agency has already submitted a response, would you like to continue?"),
+                actionLink("submit_duplicate", "Continue")
+            )
+        ),
+        
+        shinyjs::hidden(
+            div(
+                id = "agency_codes_page",
+                h3("Agency Codes"),
+                actionButton("agency_codes_continue", "CLOSE TABLE", class = "btn-primary"),
+                tableOutput('codes_table')
+            )
+        )
+        
+
+        
     ),
     
     
     # SERVER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     server = function(input, output, session) {
         
+        output$codes_table <- renderTable(codes)
+        
+        output$agencySelect <- renderUI({
+            selectInput(inputId = 'agency',
+                        label = NULL, # labelMandatory("Select Agency: (Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)"),
+                        choices = agencies.list,
+                        selected = if (input[['agency_code']] == '' | is.null(input[['agency_code']])) {''} else {as.character((codes %>% filter(code == input[['agency_code']]))[1,1])}
+            )
+        })
+        
         output$facilityTypes <- renderUI({
-            if (input$agency == '') {
+            if (is.null(input$agency)) {
+                saved.types = NULL
+            } else if (input$agency == '') {
                 saved.types = NULL
             } else {
                 saved.types <- (dummy.data %>% filter(agency_name == input$agency) %>% select(facility_types))$facility_types %>% strsplit(split = ' | ', fixed = TRUE)
@@ -446,42 +513,42 @@ shinyApp(
         
         output$approxPop <- renderUI({
             numericInput(inputId = "population", label = NULL , #"Approximate population receiving wastewater service from your agency:", 
-                         value = (dummy.data %>% filter(agency_name == input$agency) %>% select(approx_pop))$approx_pop, 
+                         value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(approx_pop))$approx_pop}, 
                          min = 0, max = 100)
         })
         
         output$contactPersonSelection <- renderUI({
             textInput(inputId = "contact_person", 
                       label = "Contact Name:", 
-                      value = (dummy.data %>% filter(agency_name == input$agency) %>% select(contact_person))$contact_person, 
+                      value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_person))$contact_person}, 
                       placeholder = 'Enter contact name...')
         })
         
         output$contactTitleSelection <- renderUI({
             textInput(inputId = "contact_title", 
                       label = "Contact Title:", 
-                      value = (dummy.data %>% filter(agency_name == input$agency) %>% select(contact_title))$contact_title,
+                      value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_title))$contact_title},
                       placeholder = 'Enter contact title...')
         })
         
         output$contactPhoneSelection <- renderUI({
             textInput(inputId = "contact_phone", 
                       label = "Contact Phone:", 
-                      value = (dummy.data %>% filter(agency_name == input$agency) %>% select(contact_phone))$contact_phone,
+                      value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_phone))$contact_phone},
                       placeholder = 'Enter contact phone...')
         })
         
         output$contactEmailSelection <- renderUI({
             textInput(inputId = "contact_email", 
                       label = "Contact Email:", 
-                      value = (dummy.data %>% filter(agency_name == input$agency) %>% select(contact_email))$contact_email,
+                      value = if (is.null(input$agency)) {""} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_email))$contact_email},
                       placeholder = 'Enter contact email...')
         })
         
         output$dateSelection <- renderUI({
             dateInput(inputId = 'date_submitted', 
                       label = 'Date:', 
-                      value = if (input$agency == "") {""} else {Sys.Date()})
+                      value = if (is.null(input$agency)) {""} else if (input$agency == '') {''} else {Sys.Date()})
         })
         
         observe({
@@ -561,6 +628,9 @@ shinyApp(
             # New Save Data !!!!!!
             formData <- reactive({
                 
+                previous.responses <- readr::read_csv("responses\\_Master.csv")
+                duplicate.response <- input[['agency']] %in% previous.responses$agency
+                
                 if (is.null(input[['facility_types']])) {
                     facilitytypes_formatted <- NA
                 } else if (length(input[['facility_types']]) > 1) {
@@ -581,6 +651,9 @@ shinyApp(
                 } else if (length(input[['question_1b']]) == 1) {question_1b_formatted <- input[['question_1b']]}
                 
                 data <- data.frame('agency' = input[['agency']],
+                                   'duplicate_response' = duplicate.response,
+                                   'duplicate_reason' = if (input[['duplicate_reason']] == '') {NA} else {input[['duplicate_reason']]},
+                                   'overwrite_duplicate' = input[['overwrite_duplicate']],
                                    'facility_types' = facilitytypes_formatted,
                                    'facilities_collection' = TRUE %in% grepl(pattern = 'Collection', x = input[['facility_types']]),
                                    'facilities_interception' = TRUE %in% grepl(pattern = 'Interception', x = input[['facility_types']]),
@@ -591,7 +664,7 @@ shinyApp(
                                    'contact_title' = input[['contact_title']],
                                    'contact_phone' = input[['contact_phone']],
                                    'contact_email' = input[['contact_email']],
-                                   'date_submitted' = input[['date_submitted']],
+                                   'date_submitted' = as.Date(input[['date_submitted']]),
                                    'question_1' = input[['question_1']],
                                    'question_1a' = input[['question_1a']],
                                    # 'question_1b' = input[['question_1b']],
@@ -646,7 +719,9 @@ shinyApp(
                                    'question_5' = if (input[['question_5']] == '') {NA} else {input[['question_5']]},
                                    'timestamp' = epochTime(),
                                    stringsAsFactors = FALSE)
-                names_update <- c('agency', 'facility_types', 'facilities_collection', 'facilities_interception', 
+                names_update <- c('agency', 
+                                  'duplicate_response', 'duplicate_reason', 'overwrite_duplicate', 
+                                  'facility_types', 'facilities_collection', 'facilities_interception', 
                                   'facilities_treatment', 'facilities_disposal', 'population', 'contact_person', 
                                   'contact_title', 'contact_phone', 'contact_email', 'date_submitted', 
                                   # Question 1
@@ -686,15 +761,21 @@ shinyApp(
                 fileName <- sprintf("%s_%s.csv",
                                     humanTime(),
                                     digest::digest(data))
-                write.csv(x = data, file = file.path(responsesDir, fileName),
-                          row.names = FALSE, quote = TRUE)
+                readr::write_csv(x = data, path = file.path(responsesDir, fileName))
+                # write.csv(x = data, file = file.path(responsesDir, fileName),
+                #           row.names = FALSE, quote = TRUE)
             }
             
             updateMaster <- function(data) { # added
-                # current_data <- read.csv('responses//_Master.csv')
-                # temp_data <- bind_rows(current_data, data)
                 # write.csv(x = temp_data, file = 'responses//_Master.csv')
-                readr::write_csv(x = data, path = 'responses//_Master.csv', append = TRUE)
+                if (input[['overwrite_duplicate']] == 'No') {
+                    readr::write_csv(x = data, path = 'responses//_Master.csv', append = TRUE)
+                } else {
+                    current_data <- readr::read_csv('responses//_Master.csv')
+                    current_data <- current_data %>% filter(agency != input[['agency']])
+                    write_data <- bind_rows(current_data, data)
+                    readr::write_csv(x = write_data, path = 'responses//_Master.csv')
+                }
             }
             
             # action to take when submit button is pressed
@@ -710,6 +791,41 @@ shinyApp(
                 shinyjs::show("form")
                 shinyjs::hide("thankyou_msg")
             })   
+            
+            
+            # check for duplicates
+            observe({
+                previous.responses <- readr::read_csv("responses\\_Master.csv")
+                duplicate.response <- input[['agency']] %in% previous.responses$agency
+                if (!is.null(duplicate.response) & !is.null(input[['agency']])) {
+                    if (duplicate.response == TRUE) {
+                        shinyjs::hide("form")
+                        shinyjs::show("duplicate_msg")
+                    }
+                }
+
+                shinyjs::toggle(id = "duplicate_reason", condition = duplicate.response == TRUE)
+                shinyjs::toggle(id = "overwrite_duplicate", condition = duplicate.response == TRUE)
+            })  
+            
+
+            
+            observeEvent(input$submit_duplicate, {
+                shinyjs::show("form")
+                shinyjs::hide("duplicate_msg")
+                shinyjs::show('form_duplicates')
+            })
+            
+            observeEvent(input$agency_codes_continue, {
+                shinyjs::show("form")
+                shinyjs::hide("agency_codes_page")
+            })
+            
+            # action to take when show codes button is pressed
+            observeEvent(input$show_codes, {
+                shinyjs::hide("form")
+                shinyjs::show("agency_codes_page")
+            })
             
     }
 )

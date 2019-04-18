@@ -32,7 +32,7 @@ humanTime <- function() format(Sys.time(), "%Y%m%d-%H%M%OS")
     
 # get codes
     codes <- readr::read_csv("data\\Codes.csv")
-    code <- codes %>% arrange(desc(agency_name) )
+    codes <- codes %>% arrange(agency_name)
 
 
 shinyApp(
@@ -488,7 +488,10 @@ shinyApp(
     # SERVER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     server = function(input, output, session) {
         
-        output$codes_table <- renderTable(codes)
+        output$codes_table <- renderTable({
+            names(codes) <- c('Agency', 'Code')
+            codes
+        })
         
         output$agencySelect <- renderUI({
             selectInput(inputId = 'agency',

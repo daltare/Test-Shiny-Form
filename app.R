@@ -28,10 +28,10 @@ humanTime <- function() format(Sys.time(), "%Y%m%d-%H%M%OS")
     # facility_agency <- dummy.data %>% distinct(facility_name, agency_name) %>% arrange(agency_name)
     
 # Get Previous Responses
-    previous.responses <- readr::read_csv("responses\\_Master.csv")
+    previous.responses <- readr::read_csv("responses//_Master.csv")
     
 # get codes
-    codes <- readr::read_csv("data\\Codes.csv")
+    codes <- readr::read_csv("data//Codes.csv")
     codes <- codes %>% arrange(agency_name)
 
 
@@ -631,7 +631,7 @@ shinyApp(
             # New Save Data !!!!!!
             formData <- reactive({
                 
-                previous.responses <- readr::read_csv("responses\\_Master.csv")
+                previous.responses <- readr::read_csv("responses//_Master.csv")
                 duplicate.response <- input[['agency']] %in% previous.responses$agency
                 
                 if (is.null(input[['facility_types']])) {
@@ -798,7 +798,7 @@ shinyApp(
             
             # check for duplicates
             observe({
-                previous.responses <- readr::read_csv("responses\\_Master.csv")
+                previous.responses <- readr::read_csv("responses//_Master.csv")
                 duplicate.response <- input[['agency']] %in% previous.responses$agency
                 if (!is.null(duplicate.response) & !is.null(input[['agency']])) {
                     if (duplicate.response == TRUE) {

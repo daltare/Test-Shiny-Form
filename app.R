@@ -479,9 +479,6 @@ shinyApp(
                 tableOutput('codes_table')
             )
         )
-        
-
-        
     ),
     
     
@@ -563,7 +560,7 @@ shinyApp(
                        logical(1))
             mandatoryFilled <- all(mandatoryFilled)
             
-            shinyjs::toggleState(id = "submit", condition = mandatoryFilled)
+            shinyjs::toggleState(id = "submit", condition = mandatoryFilled & input$agency_code %in% codes$code)
         })  
         
         # toggle question 1

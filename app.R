@@ -1,5 +1,10 @@
-library(shiny)
-library(dplyr)
+# References:
+    # https://deanattali.com/2015/06/14/mimicking-google-form-shiny/
+
+
+# load packages
+    library(shiny)
+    library(dplyr)
 
 
 fieldsMandatory <- c('agency_code', "agency")
@@ -13,9 +18,9 @@ labelMandatory <- function(label) {
 
 fieldsAll <- c("agency", "facility_types", "population", "contact_person", "contact_title")
 responsesDir <- file.path("responses//individual_responses")
-epochTime <- function() {
-    as.integer(Sys.time())
-}
+# epochTime <- function() {
+#     as.integer(Sys.time())
+# }
 
 appCSS <-
     ".mandatory_star { color: red; }"
@@ -60,7 +65,8 @@ shinyApp(
                 style="display: inline-block;vertical-align:top;"
             ),
             div(),
-            p(labelMandatory(tags$b('Agency: ')), '(Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)'),
+            p('Note: Fields below will auto-populate based on entered agency code. Edit populated fields as needed.'),
+            p(labelMandatory(tags$b('Agency: '))),
             # selectInput(inputId = 'agency',
             #             label = NULL, # labelMandatory("Select Agency: (Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)"),
             #             choices = agencies.list,
@@ -88,6 +94,12 @@ shinyApp(
             #              value = 0, min = 0, max = 100),
             p(tags$b("Approximate population receiving wastewater service from your agency:")),
             div(uiOutput('approxPop')),#style="display: inline-block;vertical-align:top;"),
+            # error message if value is not numeric
+            shinyjs::hidden(
+                div(id = 'pop_error_msg',
+                    p('Please enter a valid numeric value above (must be between 0-30,000,000)', style = "color:red")
+                    )
+                ),
             div(),
             # textInput(inputId = "contact_person", label = "Contact:", value = ""),
             # textInput(inputId = "contact_person", label = "Contact:", value = (dummy.data %>% filter(agency_name == input$agency) %>% select(contact_person))$contact_person),
@@ -108,31 +120,36 @@ shinyApp(
             hr(style="border: 2px solid black"),
             h3('Questions:'),
             
-            # QUESTION 1 ---
-            # checkboxGroupInput(inputId = 'question_1',
-            #                    label = '1. Has your agency conducted facility or infrastructure assessment(s), or prepared ...',
-            #                    choices = c('Yes', 'No', 'Work is underway'), inline = TRUE),
-            # selectInput(inputId = 'question_1', 
-            #                    label = '1. Has your agency conducted facility or infrastructure assessment(s), or prepared ...', 
-            #                    choices = c('', 'Yes', 'No', 'Work is underway')),
-            radioButtons(inputId = 'question_1', 
-                         label = '1. Has your agency conducted facility or infrastructure assessment(s), or prepared an asset 
-                         management plan that includes new or increased threats from climate change or future extreme weather 
-                         events (e.g., sea level rise, storm surge, high intensity precipitation, flooding, drought, or 
-                         extreme heat)?', 
-                         choices = c('No', 'Yes', 'Work is underway'), 
-                         width = 1300,
-                         inline = TRUE),
+            div(uiOutput('question_1_interactive')),#style="display: inline-block;vertical-align:top;"),
+            div(),
+            
+            # radioButtons(inputId = 'question_1', 
+            #              label = '1. Has your agency conducted facility or infrastructure assessment(s), or prepared an asset 
+            #              management plan that includes new or increased threats from climate change or future extreme weather 
+            #              events (e.g., sea level rise, storm surge, high intensity precipitation, flooding, drought, or 
+            #              extreme heat)?', 
+            #              choices = c('No', 'Yes', 'Work is underway'), 
+            #              width = 1300,
+            #              inline = TRUE),
+            
             div(style="display: inline-block;vertical-align:top; width: 25px;",HTML("<br>")), # add some space
+            
             div(style="display: inline-block;vertical-align:top;", 
-                radioButtons(inputId = 'question_1a', 
-                             label = '1a. Is there a local or regional assessment or plan (e.g., Climate Action Plan, 
-                             General Plan, Integrated Regional Water Management Plan) that addresses new or increased 
-                             threats to infrastructure resulting from climate change, and includes your system?', 
-                             choices = c('No', 'Yes'), 
-                             width = 1250,
-                             inline = TRUE)
+                uiOutput('question_1a_interactive')
             ),
+            
+            # div(style="display: inline-block;vertical-align:top;", 
+            #     radioButtons(inputId = 'question_1a', 
+            #                  label = '1a. Is there a local or regional assessment or plan (e.g., Climate Action Plan, 
+            #                  General Plan, Integrated Regional Water Management Plan) that addresses new or increased 
+            #                  threats to infrastructure resulting from climate change, and includes your system?', 
+            #                  choices = c('No', 'Yes'), 
+            #                  width = 1250,
+            #                  inline = TRUE)
+            # ),
+            
+            # AAA
+            
             div(),
             div(style="display: inline-block;vertical-align:top; width: 25px;",HTML("<br>")), # add some space
             div(style="display: inline-block;vertical-align:top;",
@@ -429,13 +446,28 @@ shinyApp(
                          choices = c('No', 'Yes', 'Unknown'), inline = TRUE),
             div(style="display: inline-block;vertical-align:top; width: 25px;",HTML("<br>")), # add some space
             div(style="display: inline-block;vertical-align:top;",
-                textInput(inputId = 'question_4a', 
-                          label = 'Please estimate the total financial impact to implement identified measures as a 
-                          percentage of your annual gross revenues:', 
-                          width = 1000, 
-                          placeholder = 'Enter estimated financial impact here...', 
+                textInput(inputId = 'question_4a',
+                          label = 'Please estimate the total financial impact to implement identified measures as a
+                          percentage of your annual gross revenues:',
+                          width = 1000,
+                          placeholder = 'Enter estimated financial impact here...',
                           value = NA)
             ),
+            # # change to numeric input
+            # div(style="display: inline-block;vertical-align:top;",
+            #     numericInput(inputId = 'question_4a', 
+            #               label = 'Please estimate the total financial impact to implement identified measures as a 
+            #               percentage of your annual gross revenues (only enter numeric values):', 
+            #               width = 1000, 
+            #               # placeholder = 'Enter estimated financial impact here...', 
+            #               value = NA)
+            # ),
+            # error message if value is not numeric
+            shinyjs::hidden(
+                div(id = 'numeric_percent_error_msg_4a',
+                    p('Please enter a numeric value above, as a percentage between 0 to 100 percent (e.g., enter "30%" as "30")', style = "color:red")
+                )),
+            
             div(),
             hr(style="border: 1px solid darkgrey"),
             
@@ -459,7 +491,40 @@ shinyApp(
             div(
                 id = "thankyou_msg",
                 h3("Thanks, your response was submitted successfully!"),
-                actionLink("submit_another", "Submit another response")
+                #actionLink("submit_another", "Submit another response")
+                actionButton("close", "Close", class = "btn-primary")
+            )
+        ), 
+        
+        shinyjs::hidden(
+            div(
+                id = "agency_code_error_msg",
+                h3("Invalid agency code entered. Please check the agency code and ensure that it is identical to the code you were provided via email."),
+                actionButton("close_error_msg", "Close Message", class = "btn-primary")
+            )
+        ), 
+        
+        shinyjs::hidden(
+            div(
+                id = "numeric_error_msg",
+                h3("Invalid entry in a numeric field. Please check to ensure that you've entered a valid numeric value (red text indicates warning messages)."),
+                actionButton("close_numeric_error_msg", "Close Message", class = "btn-primary")
+            )
+        ), 
+        
+        shinyjs::hidden(
+            div(
+                id = "numeric_pop_error_msg",
+                h3("Invalid entry in a numeric field. Please check to ensure that you've entered a valid numeric value (red text indicates warning messages)."),
+                actionButton("close_numeric_pop_error_msg", "Close Message", class = "btn-primary")
+            )
+        ), 
+        
+        shinyjs::hidden(
+            div(
+                id = "numeric_percent_error_msg",
+                h3("Invalid entry in a numeric field. Please check to ensure that you've entered a valid numeric value (red text indicates warning messages)."),
+                actionButton("close_numeric_percent_error_msg", "Close Message", class = "btn-primary")
             )
         ), 
         
@@ -467,7 +532,9 @@ shinyApp(
             div(
                 id = "duplicate_msg",
                 h3("Your agency has already submitted a response, would you like to continue?"),
-                actionLink("submit_duplicate", "Continue")
+                # actionLink("submit_duplicate", "Continue")
+                actionButton("submit_duplicate", "Continue", class = "btn-primary"),
+                actionButton("close_2", "Close", class = "btn-primary")
             )
         ),
         
@@ -479,10 +546,11 @@ shinyApp(
                 tableOutput('codes_table')
             )
         )
+        
     ),
     
     
-    # SERVER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+# SERVER !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     server = function(input, output, session) {
         
         output$codes_table <- renderTable({
@@ -494,7 +562,7 @@ shinyApp(
             selectInput(inputId = 'agency',
                         label = NULL, # labelMandatory("Select Agency: (Note: Fields below will auto-populate based on selected agency. Edit populated fields as needed.)"),
                         choices = agencies.list,
-                        selected = if (input[['agency_code']] == '' | is.null(input[['agency_code']])) {''} else {as.character((codes %>% filter(code == input[['agency_code']]))[1,1])}
+                        selected = if (input$agency_code == '' | is.null(input$agency_code)) {''} else {as.character((codes %>% filter(code == input$agency_code))[1,1])}
             )
         })
         
@@ -504,7 +572,10 @@ shinyApp(
             } else if (input$agency == '') {
                 saved.types = NULL
             } else {
-                saved.types <- (dummy.data %>% filter(agency_name == input$agency) %>% select(facility_types))$facility_types %>% strsplit(split = ' | ', fixed = TRUE)
+                saved.types <- dummy.data %>% 
+                    filter(agency_name == input$agency) %>% 
+                    pull(facility_types) %>% 
+                    strsplit(split = ' | ', fixed = TRUE)
                 saved.types <- as.character(saved.types[[1]])
             }
             checkboxGroupInput(inputId = "facility_types", label = "Check facilities your agency is responsible for:", 
@@ -512,36 +583,36 @@ shinyApp(
         })
         
         output$approxPop <- renderUI({
-            numericInput(inputId = "population", label = NULL , #"Approximate population receiving wastewater service from your agency:", 
-                         value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(approx_pop))$approx_pop}, 
-                         min = 0, max = 100)
+            textInput(inputId = "population", label = NULL , #"Approximate population receiving wastewater service from your agency:", 
+                         value = if(is.null(input$agency)) {''} else {dummy.data %>% filter(agency_name == input$agency) %>% pull(approx_pop)}, 
+                         )
         })
         
         output$contactPersonSelection <- renderUI({
             textInput(inputId = "contact_person", 
                       label = "Contact Name:", 
-                      value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_person))$contact_person}, 
+                      value = if(is.null(input$agency)) {''} else {dummy.data %>% filter(agency_name == input$agency) %>% pull(contact_person)}, 
                       placeholder = 'Enter contact name...')
         })
         
         output$contactTitleSelection <- renderUI({
             textInput(inputId = "contact_title", 
                       label = "Contact Title:", 
-                      value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_title))$contact_title},
+                      value = if(is.null(input$agency)) {''} else {dummy.data %>% filter(agency_name == input$agency) %>% pull(contact_title)},
                       placeholder = 'Enter contact title...')
         })
         
         output$contactPhoneSelection <- renderUI({
             textInput(inputId = "contact_phone", 
                       label = "Contact Phone:", 
-                      value = if(is.null(input$agency)) {''} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_phone))$contact_phone},
+                      value = if(is.null(input$agency)) {''} else {dummy.data %>% filter(agency_name == input$agency) %>% pull(contact_phone)},
                       placeholder = 'Enter contact phone...')
         })
         
         output$contactEmailSelection <- renderUI({
             textInput(inputId = "contact_email", 
                       label = "Contact Email:", 
-                      value = if (is.null(input$agency)) {""} else {(dummy.data %>% filter(agency_name == input$agency) %>% select(contact_email))$contact_email},
+                      value = if (is.null(input$agency)) {""} else {dummy.data %>% filter(agency_name == input$agency) %>% pull(contact_email)},
                       placeholder = 'Enter contact email...')
         })
         
@@ -550,7 +621,30 @@ shinyApp(
                       label = 'Date:', 
                       value = if (is.null(input$agency)) {""} else if (input$agency == '') {''} else {Sys.Date()})
         })
-        
+        ################################################################################################################
+        output$question_1_interactive <- renderUI({
+            radioButtons(inputId = 'question_1', 
+                         label = '1. Has your agency conducted facility or infrastructure assessment(s), or prepared an asset 
+                         management plan that includes new or increased threats from climate change or future extreme weather 
+                         events (e.g., sea level rise, storm surge, high intensity precipitation, flooding, drought, or 
+                         extreme heat)?', 
+                         choices = c('No', 'Yes', 'Work is underway'), 
+                         selected = if (input$agency %in% previous.responses$agency) {previous.responses %>% filter(agency == input$agency) %>% pull(q1_agency_assessment)} else {NULL},
+                         width = 1300,
+                         inline = TRUE)
+        })
+        output$question_1a_interactive <- renderUI({ 
+            radioButtons(inputId = 'question_1a', 
+                         label = '1a. Is there a local or regional assessment or plan (e.g., Climate Action Plan, 
+                             General Plan, Integrated Regional Water Management Plan) that addresses new or increased 
+                             threats to infrastructure resulting from climate change, and includes your system?', 
+                         choices = c('No', 'Yes'), 
+                         selected = if (input$agency %in% previous.responses$agency) {previous.responses %>% filter(agency == input$agency) %>% pull(q1_a_local_regional_plan)} else {NULL},
+                         width = 1250,
+                         inline = TRUE)
+        })
+        # BBB
+        ################################################################################################################
         observe({
             mandatoryFilled <-
                 vapply(fieldsMandatory,
@@ -560,8 +654,18 @@ shinyApp(
                        logical(1))
             mandatoryFilled <- all(mandatoryFilled)
             
-            shinyjs::toggleState(id = "submit", condition = mandatoryFilled & input$agency_code %in% codes$code)
+            shinyjs::toggleState(id = "submit", condition = mandatoryFilled) # & input$agency_code %in% codes$code)
         })  
+        
+        # toggle agency name
+        # observe({
+        #     shinyjs::toggleState(id = "agencySelect", condition = !is.na(input$agency_code) & input$agency_code != '' & !is.null(input$agency_code) & input$agency_code %in% codes$code)
+        # })
+        # 
+        # # toggle facility types
+        # observe({
+        #     shinyjs::toggleState(id = "facilityTypes", condition = !is.na(input$agency_code) & input$agency_code != '' & !is.null(input$agency_code) & input$agency_code %in% codes$code)
+        # })
         
         # toggle question 1
         observe({
@@ -629,45 +733,45 @@ shinyApp(
             formData <- reactive({
                 
                 previous.responses <- readr::read_csv("responses//_Master.csv")
-                duplicate.response <- input[['agency']] %in% previous.responses$agency
+                duplicate.response <- input$agency %in% previous.responses$agency
                 
-                if (is.null(input[['facility_types']])) {
+                if (is.null(input$facility_types)) {
                     facilitytypes_formatted <- NA
-                } else if (length(input[['facility_types']]) > 1) {
-                    facilitytypes_formatted <- input[['facility_types']][1]
-                    for (i in 2:length(input[['facility_types']])) {
-                        facilitytypes_formatted <- paste0(facilitytypes_formatted, ' | ', input[['facility_types']][i])
+                } else if (length(input$facility_types) > 1) {
+                    facilitytypes_formatted <- input$facility_types[1]
+                    for (i in 2:length(input$facility_types)) {
+                        facilitytypes_formatted <- paste0(facilitytypes_formatted, ' | ', input$facility_types[i])
                     }
-                } else if (length(input[['facility_types']]) == 1) {facilitytypes_formatted <- input[['facility_types']]}
+                } else if (length(input$facility_types) == 1) {facilitytypes_formatted <- input$facility_types}
                 
                 # format question 1b
-                if (is.null(input[['question_1b']])) {
+                if (is.null(input$question_1b)) {
                     question_1b_formatted <- NA
-                } else if (length(input[['question_1b']]) > 1) {
-                    question_1b_formatted <- input[['question_1b']][1]
-                    for (i in 2:length(input[['question_1b']])) {
-                        question_1b_formatted <- paste0(question_1b_formatted, ' | ', input[['question_1b']][i])
+                } else if (length(input$question_1b) > 1) {
+                    question_1b_formatted <- input$question_1b[1]
+                    for (i in 2:length(input$question_1b)) {
+                        question_1b_formatted <- paste0(question_1b_formatted, ' | ', input$question_1b[i])
                     }
-                } else if (length(input[['question_1b']]) == 1) {question_1b_formatted <- input[['question_1b']]}
+                } else if (length(input$question_1b) == 1) {question_1b_formatted <- input$question_1b}
                 
-                data <- data.frame('agency' = input[['agency']],
+                data <- data.frame('agency' = input$agency,
                                    'duplicate_response' = duplicate.response,
-                                   'duplicate_reason' = if (input[['duplicate_reason']] == '') {NA} else {input[['duplicate_reason']]},
-                                   'overwrite_duplicate' = input[['overwrite_duplicate']],
+                                   'duplicate_reason' = if (input$duplicate_reason == '') {NA} else {input$duplicate_reason},
+                                   'overwrite_duplicate' = input$overwrite_duplicate,
                                    'facility_types' = facilitytypes_formatted,
-                                   'facilities_collection' = TRUE %in% grepl(pattern = 'Collection', x = input[['facility_types']]),
-                                   'facilities_interception' = TRUE %in% grepl(pattern = 'Interception', x = input[['facility_types']]),
-                                   'facilities_treatment' = TRUE %in% grepl(pattern = 'Treatment', x = input[['facility_types']]),
-                                   'facilities_disposal' = TRUE %in% grepl(pattern = 'Disposal', x = input[['facility_types']]),
-                                   'population' = input[['population']],
-                                   'contact_person' = input[['contact_person']],
-                                   'contact_title' = input[['contact_title']],
-                                   'contact_phone' = input[['contact_phone']],
-                                   'contact_email' = input[['contact_email']],
-                                   'date_submitted' = as.Date(input[['date_submitted']]),
-                                   'question_1' = input[['question_1']],
-                                   'question_1a' = input[['question_1a']],
-                                   # 'question_1b' = input[['question_1b']],
+                                   'facilities_collection' = TRUE %in% grepl(pattern = 'Collection', x = input$facility_types),
+                                   'facilities_interception' = TRUE %in% grepl(pattern = 'Interception', x = input$facility_types),
+                                   'facilities_treatment' = TRUE %in% grepl(pattern = 'Treatment', x = input$facility_types),
+                                   'facilities_disposal' = TRUE %in% grepl(pattern = 'Disposal', x = input$facility_types),
+                                   'population' = as.numeric(input$population),
+                                   'contact_person' = input$contact_person,
+                                   'contact_title' = input$contact_title,
+                                   'contact_phone' = input$contact_phone,
+                                   'contact_email' = input$contact_email,
+                                   'date_submitted' = as.Date(input$date_submitted),
+                                   'question_1' = input$question_1,
+                                   'question_1a' = input$question_1a,
+                                   # 'question_1b' = input$question_1b,
                                    'question_1b' = question_1b_formatted,
                                    'question_1b_Collection' = TRUE %in% grepl(pattern = 'Collection System', x = question_1b_formatted),
                                    'question_1b_Interceptors' = TRUE %in% grepl(pattern = 'Interceptors', x = question_1b_formatted),
@@ -679,45 +783,45 @@ shinyApp(
                                    'question_1b_WetWeatherFacilities' = TRUE %in% grepl(pattern = 'Wet weather facilities', x = question_1b_formatted),
                                    'question_1b_PowerSource' = TRUE %in% grepl(pattern = 'Power source / Biogas / Cogeneration', x = question_1b_formatted),
                                    'question_1b_Telecommunications' = TRUE %in% grepl(pattern = 'Telecommunications', x = question_1b_formatted),
-                                   'question_2' = input[['question_2']],
-                                   # 'question_2text' = if (is.null(input[['question_2text']])) {NA} else {input[['question_2text']]},
-                                   # 'question_2text' = if (input[['question_2']] == 'No') {NA} else {input[['question_2text']]},
-                                   'question_2text' = if (input[['question_2text']] == '') {NA} else {input[['question_2text']]},
-                                   'question_3_1' = input[['question_3_1']],
-                                   'question_3_1_year' = input[['question_3_1_year']],
-                                   'question_3_2' = input[['question_3_2']],
-                                   'question_3_2_year' = input[['question_3_2_year']],
-                                   'question_3_3' = input[['question_3_3']],
-                                   'question_3_3_year' = input[['question_3_3_year']],
-                                   'question_3_4' = input[['question_3_4']],
-                                   'question_3_4_year' = input[['question_3_4_year']],
-                                   'question_3_5' = input[['question_3_5']],
-                                   'question_3_5_year' = input[['question_3_5_year']],
-                                   'question_3_6' = input[['question_3_6']],
-                                   'question_3_6_year' = input[['question_3_6_year']],
-                                   'question_3_7' = input[['question_3_7']],
-                                   'question_3_7_year' = input[['question_3_7_year']],
-                                   'question_3_8' = input[['question_3_8']],
-                                   'question_3_8_year' = input[['question_3_8_year']],
-                                   'question_3_9' = input[['question_3_9']],
-                                   'question_3_9_year' = input[['question_3_9_year']],
-                                   'question_3_10' = input[['question_3_10']],
-                                   'question_3_10_year' = input[['question_3_10_year']],
-                                   'question_3_11' = input[['question_3_11']],
-                                   'question_3_11_year' = input[['question_3_11_year']],
-                                   # 'question_3_11_text' = input[['question_3_11_text']],
-                                   # 'question_3_11_text' = if (input[['question_3_11']] == 'Not Planned') {NA} else {input[['question_3_11_text']]},
-                                   'question_3_11_text' = if (input[['question_3_11_text']] == '') {NA} else {input[['question_3_12_text']]},
-                                   'question_3_12' = input[['question_3_12']],
-                                   'question_3_12_year' = input[['question_3_12_year']],
-                                   # 'question_3_12_text' = input[['question_3_12_text']],
-                                   # 'question_3_12_text' = if (input[['question_3_12']] == 'Not Planned') {NA} else {input[['question_3_12_text']]},
-                                   'question_3_12_text' = if (input[['question_3_12_text']] == '') {NA} else {input[['question_3_12_text']]},
-                                   'question_4' = input[['question_4']],
-                                   # 'question_4a' = input[['question_4a']],
-                                   'question_4a' = if (input[['question_4a']] == '') {NA} else {input[['question_4a']]},
-                                   'question_5' = if (input[['question_5']] == '') {NA} else {input[['question_5']]},
-                                   'timestamp' = epochTime(),
+                                   'question_2' = input$question_2,
+                                   # 'question_2text' = if (is.null(input$question_2text)) {NA} else {input$question_2text},
+                                   # 'question_2text' = if (input$question_2 == 'No') {NA} else {input$question_2text},
+                                   'question_2text' = if (input$question_2text == '') {NA} else {input$question_2text},
+                                   'question_3_1' = input$question_3_1,
+                                   'question_3_1_year' = input$question_3_1_year,
+                                   'question_3_2' = input$question_3_2,
+                                   'question_3_2_year' = input$question_3_2_year,
+                                   'question_3_3' = input$question_3_3,
+                                   'question_3_3_year' = input$question_3_3_year,
+                                   'question_3_4' = input$question_3_4,
+                                   'question_3_4_year' = input$question_3_4_year,
+                                   'question_3_5' = input$question_3_5,
+                                   'question_3_5_year' = input$question_3_5_year,
+                                   'question_3_6' = input$question_3_6,
+                                   'question_3_6_year' = input$question_3_6_year,
+                                   'question_3_7' = input$question_3_7,
+                                   'question_3_7_year' = input$question_3_7_year,
+                                   'question_3_8' = input$question_3_8,
+                                   'question_3_8_year' = input$question_3_8_year,
+                                   'question_3_9' = input$question_3_9,
+                                   'question_3_9_year' = input$question_3_9_year,
+                                   'question_3_10' = input$question_3_10,
+                                   'question_3_10_year' = input$question_3_10_year,
+                                   'question_3_11' = input$question_3_11,
+                                   'question_3_11_year' = input$question_3_11_year,
+                                   # 'question_3_11_text' = input$question_3_11_text,
+                                   # 'question_3_11_text' = if (input$question_3_11 == 'Not Planned') {NA} else {input$question_3_11_text},
+                                   'question_3_11_text' = if (input$question_3_11_text == '') {NA} else {input$question_3_12_text},
+                                   'question_3_12' = input$question_3_12,
+                                   'question_3_12_year' = input$question_3_12_year,
+                                   # 'question_3_12_text' = input$question_3_12_text,
+                                   # 'question_3_12_text' = if (input$question_3_12 == 'Not Planned') {NA} else {input$question_3_12_text},
+                                   'question_3_12_text' = if (input$question_3_12_text == '') {NA} else {input$question_3_12_text},
+                                   'question_4' = input$question_4,
+                                   # 'question_4a' = input$question_4a,
+                                   'question_4a' = as.numeric(if (input$question_4a == '') {NA_real_} else {input$question_4a}),
+                                   'question_5' = if (input$question_5 == '') {NA} else {input$question_5},
+                                   'timestamp' = Sys.time(),
                                    stringsAsFactors = FALSE)
                 names_update <- c('agency', 
                                   'duplicate_response', 'duplicate_reason', 'overwrite_duplicate', 
@@ -768,36 +872,109 @@ shinyApp(
             
             updateMaster <- function(data) { # added
                 # write.csv(x = temp_data, file = 'responses//_Master.csv')
-                if (input[['overwrite_duplicate']] == 'No') {
+                if (input$overwrite_duplicate == 'No') {
                     readr::write_csv(x = data, path = 'responses//_Master.csv', append = TRUE)
                 } else {
                     current_data <- readr::read_csv('responses//_Master.csv')
-                    current_data <- current_data %>% filter(agency != input[['agency']])
+                    current_data <- current_data %>% filter(agency != input$agency)
                     write_data <- bind_rows(current_data, data)
                     readr::write_csv(x = write_data, path = 'responses//_Master.csv')
                 }
             }
             
+            checkCode <- function(input_code) {
+                if (input_code %in% codes$code) {
+                    return(TRUE)
+                } else {
+                    return(FALSE)
+                }
+            }
+            
+            checkNumeric <- function(input_value) {
+                if (!is.na(as.numeric(input_value)) | input_value == '') {
+                    return(TRUE)
+                } else {
+                    return(FALSE)
+                }
+            }
+            
+            checkNumericPop <- function(input_value) {
+                if ((!is.na(as.numeric(input_value)) & as.numeric(input_value) >= 0 & as.numeric(input_value) <= 30*10^6) | input_value == '') {
+                    return(TRUE)
+                } else {
+                    return(FALSE)
+                }
+            }
+            
+            checkNumericPercent <- function(input_value) {
+                if ((!is.na(as.numeric(input_value)) & as.numeric(input_value) >= 0 & as.numeric(input_value) <= 100) | input_value == '') {
+                    return(TRUE)
+                } else {
+                    return(FALSE)
+                }
+            }
+            
             # action to take when submit button is pressed
             observeEvent(input$submit, {
-                saveData(formData())
-                updateMaster(formData()) # added
-                shinyjs::reset("form")
-                shinyjs::hide("form")
-                shinyjs::show("thankyou_msg")
+                if (checkCode(input$agency_code) == TRUE & checkNumericPop(input$population) == TRUE & checkNumericPercent(input$question_4a) == TRUE) {
+                    saveData(formData())
+                    updateMaster(formData()) # added
+                    shinyjs::reset("form")
+                    shinyjs::hide("form")
+                    shinyjs::show("thankyou_msg")
+                } else if (checkCode(input$agency_code) == FALSE) {
+                    shinyjs::hide("form")
+                    shinyjs::show("agency_code_error_msg") 
+                } else if(checkNumericPop(input$population) == FALSE) {
+                    shinyjs::hide("form")
+                    shinyjs::show("numeric_pop_error_msg")
+                } else if(checkNumericPercent(input$question_4a) == FALSE) {
+                    shinyjs::hide("form")
+                    shinyjs::show("numeric_percent_error_msg")
+                }
+            })
+            # 
+            # observeEvent(input$submit_another, {
+            #     shinyjs::show("form")
+            #     shinyjs::hide("thankyou_msg")
+            # })   
+            
+            
+            # action to take when close button is pressed
+            observeEvent(input$close, {
+                stopApp()
+                # shinyjs::onclick("setTimeout(function(){window.close();},500);")
+            })
+            observeEvent(input$close_2, {
+                stopApp()
             })
             
-            observeEvent(input$submit_another, {
-                shinyjs::show("form")
-                shinyjs::hide("thankyou_msg")
-            })   
             
+            observeEvent(input$close_error_msg, {
+                shinyjs::hide('agency_code_error_msg')
+                shinyjs::show("form")
+            })
+            
+            observeEvent(input$close_numeric_error_msg, {
+                shinyjs::hide('numeric_error_msg')
+                shinyjs::show("form")
+            })
+            
+            observeEvent(input$close_numeric_pop_error_msg, {
+                shinyjs::hide('numeric_pop_error_msg')
+                shinyjs::show("form")
+            })
+            
+            observeEvent(input$close_numeric_percent_error_msg, {
+                shinyjs::hide('numeric_percent_error_msg')
+                shinyjs::show("form")
+            })
             
             # check for duplicates
             observe({
                 previous.responses <- readr::read_csv("responses//_Master.csv")
-                duplicate.response <- input[['agency']] %in% previous.responses$agency
-                if (!is.null(duplicate.response) & !is.null(input[['agency']])) {
+                duplicate.response <- input$agency %in% previous.responses$agency
+                if (!is.null(duplicate.response) & !is.null(input$agency)) {
                     if (duplicate.response == TRUE) {
                         shinyjs::hide("form")
                         shinyjs::show("duplicate_msg")
@@ -808,23 +985,41 @@ shinyApp(
                 shinyjs::toggle(id = "overwrite_duplicate", condition = duplicate.response == TRUE)
             })  
             
-
-            
+            # action to submit a duplicate responce
             observeEvent(input$submit_duplicate, {
                 shinyjs::show("form")
                 shinyjs::hide("duplicate_msg")
                 shinyjs::show('form_duplicates')
             })
             
+            # action to take when show codes button is pressed
+            observeEvent(input$show_codes, {
+                shinyjs::hide("form")
+                shinyjs::show("agency_codes_page")
+            })            
+            
+            # action to to close the agency codes list
             observeEvent(input$agency_codes_continue, {
                 shinyjs::show("form")
                 shinyjs::hide("agency_codes_page")
             })
             
-            # action to take when show codes button is pressed
-            observeEvent(input$show_codes, {
-                shinyjs::hide("form")
-                shinyjs::show("agency_codes_page")
+            # check for numeric value in population field
+            observeEvent(input$population, {
+                if (checkNumericPop(input$population) == FALSE) {
+                    shinyjs::show("pop_error_msg")
+                } else if (checkNumericPop(input$population) == TRUE) {
+                    shinyjs::hide("pop_error_msg")
+                }
+            })
+            
+            # check for numeric percent value in question 4a
+            observeEvent(input$question_4a, {
+                if (checkNumericPercent(input$question_4a) == FALSE) {
+                    shinyjs::show("numeric_percent_error_msg_4a")
+                } else if (checkNumericPercent(input$question_4a) == TRUE) {
+                    shinyjs::hide("numeric_percent_error_msg_4a")
+                }
             })
             
     }
